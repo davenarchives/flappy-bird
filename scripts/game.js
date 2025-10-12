@@ -12,6 +12,29 @@ import {
 } from './config.js';
 import { createVideoController } from './video.js';
 
+const createSoundPlayer = (src, { poolSize = 1, volume = 1 } = {}) => {
+  const players = Array.from({ length: Math.max(1, poolSize) }, () => {
+    const audio = new Audio(src);
+    audio.preload = 'auto';
+    audio.volume = volume;
+    return audio;
+  });
+  let index = 0;
+  return () => {
+    const audio = players[index];
+    index = (index + 1) % players.length;
+    try {
+      audio.currentTime = 0;
+    } catch (err) {
+      /* Safari can throw while loading; safe to ignore */
+    }
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+      playPromise.catch(() => {});
+    }
+  };
+};
+
 export function initGame() {
   const canvas = document.getElementById(CANVAS_ID);
   if (!canvas) {
@@ -33,6 +56,13 @@ export function initGame() {
 
   const videoEl = document.getElementById(VIDEO_ID);
   const videoController = createVideoController(videoEl, DEATH_VIDEOS);
+
+  const sounds = {
+    wing: createSoundPlayer('game-audio/sfx_wing.wav', { poolSize: 4, volume: 0.55 }),
+    point: createSoundPlayer('game-audio/sfx_point.wav', { poolSize: 2, volume: 0.6 }),
+    hit: createSoundPlayer('game-audio/sfx_hit.wav', { poolSize: 2, volume: 0.6 }),
+    die: createSoundPlayer('game-audio/sfx_die.wav', { poolSize: 2, volume: 0.6 }),
+  };
 
   const bird = {
     x: 80,
@@ -135,11 +165,14 @@ export function initGame() {
   const flap = () => {
     if (state.mode === 'ready') {
       start();
+      bird.vy = world.jumpV;
+      sounds.wing();
       return;
     }
 
     if (state.mode === 'playing') {
       bird.vy = world.jumpV;
+      sounds.wing();
       return;
     }
 
@@ -169,6 +202,7 @@ export function initGame() {
     if (state.mode !== 'playing') return;
     state.mode = 'dying';
     bird.vy = Math.max(4, Math.abs(bird.vy));
+    sounds.hit();
   };
 
   const update = (dt) => {
@@ -209,6 +243,7 @@ export function initGame() {
         state.score += 1;
         state.best = Math.max(state.best, state.score);
         localStorage.setItem('fb_best', state.best);
+        sounds.point();
       }
       if (pipe.x + world.pipeWidth < -40) pipes.splice(i, 1);
     }
@@ -440,6 +475,7 @@ export function initGame() {
 
   const die = () => {
     state.mode = 'gameover';
+    sounds.die();
     scheduleDeathVideoSkipUnlock();
     playDeathVideo();
   };
@@ -479,5 +515,5 @@ export function initGame() {
   hideDeathVideo();
   render();
 
-  window.__fb = { state, bird, pipes, world };
+  window.__fb = { state, bird, pipes, world, sounds };
 }
