@@ -20,6 +20,7 @@ export const UI_FONT =
 export const DIFFICULTY_CAP = 40;
 export const STEPS_PER_MS = 60 / 1000;
 export const INITIAL_PIPE_DISTANCE_RATIO = 0.25;
+export const DEATH_VIDEO_SKIP_DELAY_MS = 5000;
 
 export const DEATH_VIDEOS = [
   'relapse/alipin.mp4',

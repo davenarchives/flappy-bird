@@ -7,6 +7,7 @@ import {
   DIFFICULTY_CAP,
   STEPS_PER_MS,
   INITIAL_PIPE_DISTANCE_RATIO,
+  DEATH_VIDEO_SKIP_DELAY_MS,
   DEATH_VIDEOS,
 } from './config.js';
 import { createVideoController } from './video.js';
@@ -27,9 +28,11 @@ export function initGame() {
     paused: false,
     score: 0,
     best: Number(localStorage.getItem('fb_best') || 0),
+    skipUnlockAt: 0,
   };
 
-  const videoController = createVideoController(document.getElementById(VIDEO_ID), DEATH_VIDEOS);
+  const videoEl = document.getElementById(VIDEO_ID);
+  const videoController = createVideoController(videoEl, DEATH_VIDEOS);
 
   const bird = {
     x: 80,
@@ -72,8 +75,29 @@ export function initGame() {
 
   let nextPipeAt = initialPipeDelay();
 
-  const hideDeathVideo = () => videoController.hide();
+  const resetDeathVideoSkipLock = () => {
+    state.skipUnlockAt = 0;
+  };
+
+  const scheduleDeathVideoSkipUnlock = () => {
+    state.skipUnlockAt = performance.now() + DEATH_VIDEO_SKIP_DELAY_MS;
+  };
+
+  const canSkipDeathVideo = () => performance.now() >= state.skipUnlockAt;
+
+  const hideDeathVideo = () => {
+    videoController.hide();
+    resetDeathVideoSkipLock();
+  };
   const playDeathVideo = () => videoController.playRandom();
+
+  if (videoEl) {
+    videoEl.addEventListener('playing', () => {
+      if (state.mode === 'gameover') {
+        scheduleDeathVideoSkipUnlock();
+      }
+    });
+  }
 
   const reset = () => {
     state.mode = 'ready';
@@ -109,9 +133,19 @@ export function initGame() {
   };
 
   const flap = () => {
-    if (state.mode === 'ready') start();
-    if (state.mode === 'playing') bird.vy = world.jumpV;
-    if (state.mode === 'gameover') reset();
+    if (state.mode === 'ready') {
+      start();
+      return;
+    }
+
+    if (state.mode === 'playing') {
+      bird.vy = world.jumpV;
+      return;
+    }
+
+    if (state.mode === 'gameover' && canSkipDeathVideo()) {
+      reset();
+    }
   };
 
   const spawnPipe = () => {
@@ -373,6 +407,7 @@ export function initGame() {
 
   const die = () => {
     state.mode = 'gameover';
+    scheduleDeathVideoSkipUnlock();
     playDeathVideo();
   };
 
@@ -394,7 +429,10 @@ export function initGame() {
       event.preventDefault();
       flap();
     }
-    if (event.key.toLowerCase() === 'r') reset();
+    if (event.key.toLowerCase() === 'r') {
+      if (state.mode === 'gameover' && !canSkipDeathVideo()) return;
+      reset();
+    }
     if (event.key.toLowerCase() === 'p') pauseToggle();
   });
 

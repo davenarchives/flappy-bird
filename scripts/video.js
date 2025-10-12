@@ -2,11 +2,30 @@ export function createVideoController(videoEl, sources = []) {
   if (!videoEl) {
     return {
       hide() {},
-      playRandom() {},
+      playRandom() {
+        return Promise.resolve();
+      },
     };
   }
 
+  let onLoadedData = null;
+  let onPlaying = null;
+
+  videoEl.preload = 'auto';
+
+  const clearPendingVisibility = () => {
+    if (onLoadedData) {
+      videoEl.removeEventListener('loadeddata', onLoadedData);
+      onLoadedData = null;
+    }
+    if (onPlaying) {
+      videoEl.removeEventListener('playing', onPlaying);
+      onPlaying = null;
+    }
+  };
+
   const hide = () => {
+    clearPendingVisibility();
     videoEl.pause();
     videoEl.currentTime = 0;
     videoEl.removeAttribute('src');
@@ -28,14 +47,29 @@ export function createVideoController(videoEl, sources = []) {
       .catch(() => {});
 
   const playRandom = () => {
-    if (!sources.length) return;
+    if (!sources.length) return Promise.resolve();
+    clearPendingVisibility();
     const source = sources[Math.floor(Math.random() * sources.length)];
+    videoEl.classList.remove('visible');
     videoEl.src = source;
-    videoEl.classList.add('visible');
+    videoEl.preload = 'auto';
     videoEl.currentTime = 0;
     videoEl.muted = false;
+
+    onLoadedData = () => {
+      onLoadedData = null;
+      videoEl.classList.add('visible');
+    };
+    videoEl.addEventListener('loadeddata', onLoadedData, { once: true });
+
+    onPlaying = () => {
+      onPlaying = null;
+      videoEl.classList.add('visible');
+    };
+    videoEl.addEventListener('playing', onPlaying, { once: true });
+
     videoEl.load();
-    tryPlay();
+    return tryPlay();
   };
 
   hide();
