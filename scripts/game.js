@@ -12,6 +12,9 @@ import {
 } from './config.js';
 import { createVideoController } from './video.js';
 
+const WING_FLAP_FREQ_PLAYING = 5; // flaps per second
+const WING_FLAP_FREQ_DYING = 2.5;
+
 const createSoundPlayer = (src, { poolSize = 1, volume = 1 } = {}) => {
   const players = Array.from({ length: Math.max(1, poolSize) }, () => {
     const audio = new Audio(src);
@@ -52,6 +55,7 @@ export function initGame() {
     score: 0,
     best: Number(localStorage.getItem('fb_best') || 0),
     skipUnlockAt: 0,
+    wingPhase: 0,
   };
 
   const videoEl = document.getElementById(VIDEO_ID);
@@ -140,6 +144,7 @@ export function initGame() {
     state.acc = 0;
     state.lastTime = 0;
     state.paused = false;
+    state.wingPhase = 0;
     bird.x = 80;
     bird.y = CANVAS_SIZE.height / 2;
     bird.vy = 0;
@@ -215,6 +220,9 @@ export function initGame() {
     const isDying = state.mode === 'dying';
     const speed = isDying ? 0 : currentSpeed();
     state.acc = speed;
+
+    const flapFreq = isDying ? WING_FLAP_FREQ_DYING : WING_FLAP_FREQ_PLAYING;
+    state.wingPhase = (state.wingPhase + dt * flapFreq * Math.PI * 2) % (Math.PI * 2);
 
     bird.vy += world.gravity * step;
     bird.y += bird.vy * step;
@@ -339,6 +347,10 @@ export function initGame() {
     const bodyWidth = bird.r * 1.15;
     const bodyHeight = bird.r * 0.9;
     const wingLift = Math.max(-bird.vy * 0.18, 0);
+    const wingFlap = Math.sin(state.wingPhase);
+    const wingTilt = -0.35 + wingFlap * 0.6;
+    const wingOffset = wingFlap * bird.r * 0.45;
+    const wingStretch = 1 + wingLift / (bird.r * 1.1) + Math.max(0, -wingFlap) * 0.25;
     const showDeadEye = state.mode === 'dying' || state.mode === 'gameover';
 
     ctx.fillStyle = '#d97706';
@@ -370,29 +382,29 @@ export function initGame() {
     ctx.ellipse(-bodyWidth * 0.1, bodyHeight * 0.25, bodyWidth * 0.65, bodyHeight * 0.65, -0.2, 0, Math.PI * 2);
     ctx.fill();
 
+    ctx.save();
+    ctx.translate(-bodyWidth * 0.05, bodyHeight * 0.2 - wingOffset);
+    ctx.rotate(wingTilt);
+    const wingWidth = bodyWidth * 0.55;
+    const wingHeight = (bodyHeight * 0.55 + wingLift) * wingStretch;
     ctx.fillStyle = '#fbbf24';
     ctx.beginPath();
-    ctx.ellipse(
-      -bodyWidth * 0.05,
-      bodyHeight * 0.2,
-      bodyWidth * 0.55,
-      bodyHeight * 0.55 + wingLift,
-      -0.25,
-      0,
-      Math.PI * 2
-    );
+    ctx.ellipse(0, 0, wingWidth, wingHeight, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = 'rgba(217,119,6,0.45)';
     ctx.lineWidth = bird.r * 0.12;
     ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     const featherCount = 3;
     for (let i = 0; i < featherCount; i++) {
       const featherProgress = (i + 1) / (featherCount + 1);
-      const y = bodyHeight * 0.05 + featherProgress * bodyHeight * 0.5;
+      const featherY = -wingHeight * 0.35 + featherProgress * wingHeight * 0.9;
+      const featherRadius = wingWidth * 0.65;
       ctx.beginPath();
-      ctx.arc(-bodyWidth * 0.15, y, bodyWidth * 0.35, Math.PI * 0.1, Math.PI * 0.9);
+      ctx.arc(-wingWidth * 0.25, featherY, featherRadius, Math.PI * 0.15, Math.PI * 0.95);
       ctx.stroke();
     }
+    ctx.restore();
 
     ctx.fillStyle = '#fff';
     ctx.beginPath();
