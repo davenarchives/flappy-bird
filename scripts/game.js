@@ -243,7 +243,8 @@ export function initGame() {
     for (let i = pipes.length - 1; i >= 0; i--) {
       const pipe = pipes[i];
       pipe.x -= speed * step;
-      if (!pipe.scored && pipe.x + world.pipeWidth < bird.x) {
+      const pipeMidX = pipe.x + world.pipeWidth * 0.2;
+      if (!pipe.scored && bird.x > pipeMidX) {
         pipe.scored = true;
         state.score += 1;
         state.best = Math.max(state.best, state.score);
