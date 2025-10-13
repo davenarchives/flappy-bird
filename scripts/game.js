@@ -127,6 +127,11 @@ export function initGame() {
         scheduleDeathVideoSkipUnlock();
       }
     });
+    videoEl.addEventListener('ended', () => {
+      if (state.mode === 'gameover') {
+        hideDeathVideo();
+      }
+    });
   }
 
   const reset = () => {
