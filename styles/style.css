@@ -5,6 +5,10 @@
   --accent-2: #22d3ee;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 html,
 body {
   height: 100%;
@@ -12,9 +16,12 @@ body {
 
 body {
   margin: 0;
-  display: grid;
-  place-items: center;
-  padding: clamp(12px, 4vh, 36px);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  overflow: hidden;
   background: radial-gradient(1200px 800px at 50% -10%, #1e293b, var(--bg));
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
     "Apple Color Emoji", "Segoe UI Emoji";
@@ -27,6 +34,9 @@ body {
   width: 100%;
   max-width: 480px;
   gap: clamp(12px, 3vh, 20px);
+  padding: clamp(12px, 4vh, 36px);
+  box-sizing: border-box;
+  height: 100%;
 }
 
 .playfield {
@@ -37,6 +47,7 @@ body {
   border-radius: 18px;
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  max-height: calc(100vh - 2 * 12px);
 }
 
 .playfield canvas {
